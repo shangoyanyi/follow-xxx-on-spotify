@@ -36,7 +36,7 @@ module.exports = React.createClass({
     //     this.loadCommentsFromServer();
     //     setInterval(this.loadCommentsFromServer, this.props.pollInterval);
     // },
-    checkLoginStatus: function(){
+    checkLoginStatus: function(callback){
         var hash = {};
         window.location.hash.replace(/^#\/?/, '').split('&').forEach(function(kv) {
             var spl = kv.indexOf('=');
@@ -50,32 +50,36 @@ module.exports = React.createClass({
         if ((hash.token_type == 'access_token') || (hash.token_type == 'Bearer')) {
             var accessToken = hash.access_token;
             
-            $.ajax({
-                url: 'https://api.spotify.com/v1/me',
-                headers: {
-                    'Authorization': 'Bearer ' + accessToken
-                },
-                success: function(data){
-                    console.log(JSON.stringify(data));
+            // $.ajax({
+            //     url: 'https://api.spotify.com/v1/me',
+            //     headers: {
+            //         'Authorization': 'Bearer ' + accessToken
+            //     },
+            //     success: function(data){
+            //         console.log(JSON.stringify(data));
                     
-                    this.setState({
-                       user: {
-                            status: 1,
-                            name: data.email
-                        }
-                    });
-                }.bind(this)
-            });
+            //         this.setState({
+            //           user: {
+            //                 status: 1,
+            //                 name: data.email
+            //             }
+            //         });
+            //     }.bind(this)
+            // });
+            
+            callback.success(accessToken);
             
         }else{
-            console.log("set status to -1");
+            // console.log("set status to -1");
             
-            this.setState({
-               user: {
-                    status: -1,
-                    name: ""
-                }
-            });
+            // this.setState({
+            //   user: {
+            //         status: -1,
+            //         name: ""
+            //     }
+            // });
+            
+            callback.error();
         }
     },
     handleLoginRequest: function(){
@@ -91,25 +95,78 @@ module.exports = React.createClass({
         }
         
         var url = getLoginURL([
-            'user-read-email'
+            'user-read-email',
+            'user-follow-read',
+            'user-follow-modify'
         ]);
         
         location.href = url;
     },
     getInitialState: function(){
         return {
-            user: {status: 0, name: ""} //0 stands for not login, 1 stands for logged in
+            user: {status: 0, name: ""}, //0 stands for not login, 1 stands for logged in
+            followingList: []
         };
     },
     componentDidMount: function(){
-        this.checkLoginStatus();
+        this.checkLoginStatus({
+            success: function(accessToken){
+                // 取得使用者資料
+                $.ajax({
+                    url: 'https://api.spotify.com/v1/me',
+                    headers: {
+                        'Authorization': 'Bearer ' + accessToken
+                    },
+                    success: function(data){
+                        console.log(JSON.stringify(data));
+                        
+                        this.setState({
+                           user: {
+                                status: 1,
+                                name: data.email
+                            }
+                        });
+                    }.bind(this)
+                });
+                   
+                // 取得following清單
+                $.ajax({
+                    url: 'https://api.spotify.com/v1/me/following?type=artist',
+                    headers: {
+                        'Authorization': 'Bearer ' + accessToken
+                    },
+                    success: function(data){
+                        console.log(JSON.stringify(data));
+                        this.setState({
+                            followingList: data.artists.items
+                        });
+                    }.bind(this)
+                });
+                
+            }.bind(this),
+            
+            error: function(){
+                console.log("not login, set status to -1");
+            
+                this.setState({
+                   user: {
+                        status: -1,
+                        name: ""
+                    }
+                });
+            }.bind(this)
+        });
     },
     render: function() {
         return (
             <div className="FollowOnSpotifyBox">
                 <h1>Follow XXX On Spotify</h1>
                 
-                <SpotifyUser user={this.state.user} handleLoginRequest={this.handleLoginRequest}/>
+                <SpotifyUser user={this.state.user} handleLoginRequest={this.handleLoginRequest} />
+                
+                <FollowingForm />
+                
+                <FollowingList data={this.state.followingList} />
             </div>
         );
     }
@@ -144,3 +201,42 @@ var SpotifyUser = React.createClass({
         }
     }
 });
+
+
+var FollowingList = React.createClass({
+    render: function(){
+        var followingNodes = this.props.data.map(function(following) {
+            return (
+                <div key={following.id}>
+                    <p>{following.name}</p>
+                </div>
+            );
+        });
+        
+        return (
+            <div className="followList">
+                {followingNodes}
+            </div>
+        );
+   } 
+});
+
+
+var FollowingForm = React.createClass({
+    getInitialState: function(){
+        return {
+            artistName: ""
+        };
+    },
+    handleArtistNameChange: function(e) {
+        this.setState({artistName: e.target.value});
+        console.log(this.state.artistName);
+    },
+    render: function(){
+        return (
+            <div>
+                <input type='text' placeholder='input an artistName to follow' value={this.state.artistName} onChange={this.handleArtistNameChange} />
+            </div>
+        );
+    }
+})
