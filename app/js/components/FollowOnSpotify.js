@@ -2,40 +2,6 @@ var React = require("react");
 var $ = require('jquery');
 
 module.exports = React.createClass({
-    // loadCommentsFromServer: function() {
-    //     $.ajax({
-    //         url: this.props.url,
-    //         dataType: 'json',
-    //         cache: false,
-    //         success: function(data) {
-    //             this.setState({data: data});
-    //         }.bind(this),
-    //         error: function(xhr, status, err) {
-    //             console.error(this.props.url, status, err.toString());
-    //         }.bind(this)
-    //     });
-    // },
-    // handleCommentSubmit: function(comment){
-    //     $.ajax({
-    //       url: this.props.url,
-    //       dataType: 'json',
-    //       type: 'POST',
-    //       data: comment,
-    //       success: function(data) {
-    //         this.setState({data: data});
-    //       }.bind(this),
-    //       error: function(xhr, status, err) {
-    //         console.error(this.props.url, status, err.toString());
-    //       }.bind(this)
-    //     });
-    // },
-    // getInitialState: function() {
-    //     return {data: []};
-    // },
-    // componentDidMount: function() {
-    //     this.loadCommentsFromServer();
-    //     setInterval(this.loadCommentsFromServer, this.props.pollInterval);
-    // },
     checkLoginStatus: function(callback){
         var hash = {};
         window.location.hash.replace(/^#\/?/, '').split('&').forEach(function(kv) {
@@ -49,36 +15,9 @@ module.exports = React.createClass({
         
         if ((hash.token_type == 'access_token') || (hash.token_type == 'Bearer')) {
             var accessToken = hash.access_token;
-            
-            // $.ajax({
-            //     url: 'https://api.spotify.com/v1/me',
-            //     headers: {
-            //         'Authorization': 'Bearer ' + accessToken
-            //     },
-            //     success: function(data){
-            //         console.log(JSON.stringify(data));
-                    
-            //         this.setState({
-            //           user: {
-            //                 status: 1,
-            //                 name: data.email
-            //             }
-            //         });
-            //     }.bind(this)
-            // });
-            
             callback.success(accessToken);
             
         }else{
-            // console.log("set status to -1");
-            
-            // this.setState({
-            //   user: {
-            //         status: -1,
-            //         name: ""
-            //     }
-            // });
-            
             callback.error();
         }
     },
@@ -96,14 +35,33 @@ module.exports = React.createClass({
         
         var url = getLoginURL([
             'user-read-email',
+            'user-read-private',
             'user-follow-read',
             'user-follow-modify'
+            
         ]);
         
         location.href = url;
     },
+    handleFollowRequest: function(id){
+        console.log('handleFollowRequest triggered, id:' + id);
+        
+        $.ajax({
+            method: "PUT",
+            url: 'https://api.spotify.com/v1/me/following?type=artist&ids=' + id,
+            headers: {
+                'Authorization': 'Bearer ' + this.state.accessToken
+            },
+            success: function(){
+                console.log("artist followed");
+                
+            }.bind(this)
+        });
+        
+    },
     getInitialState: function(){
         return {
+            accessToken: "",
             user: {status: 0, name: ""}, //0 stands for not login, 1 stands for logged in
             followingList: []
         };
@@ -111,6 +69,11 @@ module.exports = React.createClass({
     componentDidMount: function(){
         this.checkLoginStatus({
             success: function(accessToken){
+                // 設定accessToken
+                this.setState({
+                    accessToken: accessToken
+                });
+                
                 // 取得使用者資料
                 $.ajax({
                     url: 'https://api.spotify.com/v1/me',
@@ -119,7 +82,6 @@ module.exports = React.createClass({
                     },
                     success: function(data){
                         console.log(JSON.stringify(data));
-                        
                         this.setState({
                            user: {
                                 status: 1,
@@ -142,12 +104,10 @@ module.exports = React.createClass({
                         });
                     }.bind(this)
                 });
-                
             }.bind(this),
             
             error: function(){
                 console.log("not login, set status to -1");
-            
                 this.setState({
                    user: {
                         status: -1,
@@ -164,8 +124,7 @@ module.exports = React.createClass({
                 
                 <SpotifyUser user={this.state.user} handleLoginRequest={this.handleLoginRequest} />
                 
-                <FollowingForm />
-                
+                <SearchBox user={this.state.user} accessToken={this.state.accessToken} handleFollowRequest={this.handleFollowRequest} />
                 <FollowingList data={this.state.followingList} />
             </div>
         );
@@ -222,21 +181,58 @@ var FollowingList = React.createClass({
 });
 
 
-var FollowingForm = React.createClass({
+
+var SearchBox = React.createClass({
     getInitialState: function(){
         return {
-            artistName: ""
+            artistName: "",
+            searchResult: {
+                id: "",
+                name: "",
+                image: ""
+            }
         };
     },
     handleArtistNameChange: function(e) {
         this.setState({artistName: e.target.value});
-        console.log(this.state.artistName);
+        
+        $.ajax({
+            url: 'https://api.spotify.com/v1/search?q=' + encodeURIComponent(e.target.value) + '&type=artist&limit=1',
+            headers: {
+                'Authorization': 'Bearer ' + this.props.accessToken
+            },
+            success: function(data){
+                console.log(JSON.stringify(data));
+                this.setState({
+                    searchResult: {
+                        id: data.artists.items[0].id,
+                        name: data.artists.items[0].name,
+                        image: data.artists.items[0].images[2].url
+                    }
+                });
+            }.bind(this)
+        });
     },
     render: function(){
         return (
             <div>
-                <input type='text' placeholder='input an artistName to follow' value={this.state.artistName} onChange={this.handleArtistNameChange} />
+                <p>Please enter an artist's name to search</p>
+                <input type='text' value={this.state.artistName} onChange={this.handleArtistNameChange} />
+                
+                <div>
+                    <div>
+                        <img src={this.state.searchResult.image} />
+                    </div>
+                    <div>
+                        <p>{this.state.searchResult.name}</p>
+                        <p>{this.state.searchResult.id}</p>
+                    </div>
+                    
+                    <p><button onClick={this.props.handleFollowRequest.bind(this, this.state.searchResult.id)}> Follow </button></p>
+                </div>
             </div>
         );
     }
 })
+
+
