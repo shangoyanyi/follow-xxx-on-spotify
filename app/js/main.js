@@ -1,24 +1,31 @@
 var React = require('react');
 var ReactDOM = require('react-dom');
 
-// var Hello = require("./components/Hello");
-// var CommentBox = require("./components/CommentBox");
+// var FollowOnSpotify = require("./components/FollowOnSpotify");
+var SpotifyBox = require("./components/SpotifyBox");
 
-var FollowOnSpotifyBox = require("./components/FollowOnSpotify");
 
-/*
+// ReactDOM.render(
+//   <FollowOnSpotify />, 
+//   document.getElementById("content")
+// );
+
+
+var clientId    = "349685b76abc4bb6a32ed4806fd39382";
+var redirectUri = "https://follow-xxx-on-spotify-shangoyanyi.c9users.io/spotify-oauth-proxy.html";
+var scope = [
+  'user-read-email',
+  'user-read-private',
+  'user-follow-read',
+  'user-follow-modify'
+].join(' ');
+
+
+
 ReactDOM.render(
-  <Hello name="Nate" />, 
-  document.getElementById('content')
+  <SpotifyBox clientId={clientId} redirectUri={redirectUri} scope={scope} state="" />, 
+  document.getElementById("spotifyBox")
 );
 
-ReactDOM.render(
-  <CommentBox url="https://node-express-sample-shangoyanyi.c9users.io/api/comments" pollInterval={2000} />, 
-  document.getElementById('comment')
-);
-*/
 
-ReactDOM.render(
-  <FollowOnSpotifyBox />, document.getElementById("FollowOnSpotifyBox")
-);
 

@@ -1,5 +1,6 @@
 var React = require("react");
 var $ = require('jquery');
+var wurl = require('wurl'); // a nodejs version js-url
 
 module.exports = React.createClass({
     checkLoginStatus: function(callback){
@@ -25,12 +26,17 @@ module.exports = React.createClass({
         var CLIENT_ID = '349685b76abc4bb6a32ed4806fd39382';
         var REDIRECT_URI = 'https://follow-xxx-on-spotify-shangoyanyi.c9users.io/index.html';
         
+        var states = {
+            artist : wurl('?artist')
+        };
+        
         function getLoginURL(scopes) {
             return 'https://accounts.spotify.com/authorize' + 
                 '?client_id=' + CLIENT_ID +
                 '&redirect_uri=' + encodeURIComponent(REDIRECT_URI) +
                 '&scope=' + encodeURIComponent(scopes.join(' ')) +
-                '&response_type=token';
+                '&response_type=token' + 
+                '&state=' + encodeURIComponent(JSON.stringify(states));
         }
         
         var url = getLoginURL([
@@ -63,6 +69,7 @@ module.exports = React.createClass({
         return {
             accessToken: "",
             user: {status: 0, name: ""}, //0 stands for not login, 1 stands for logged in
+            searchText : "",
             followingList: []
         };
     },
@@ -73,6 +80,13 @@ module.exports = React.createClass({
                 this.setState({
                     accessToken: accessToken
                 });
+                
+                
+                // 取得url中查詢參數
+                this.setState({
+                    searchText: wurl('?artist')
+                });
+                
                 
                 // 取得使用者資料
                 $.ajax({
@@ -124,7 +138,7 @@ module.exports = React.createClass({
                 
                 <SpotifyUser user={this.state.user} handleLoginRequest={this.handleLoginRequest} />
                 
-                <SearchBox user={this.state.user} accessToken={this.state.accessToken} handleFollowRequest={this.handleFollowRequest} />
+                <SearchBox user={this.state.user} accessToken={this.state.accessToken} handleFollowRequest={this.handleFollowRequest} searchText={this.state.searchText}  />
                 <FollowingList data={this.state.followingList} />
             </div>
         );
@@ -192,6 +206,9 @@ var SearchBox = React.createClass({
                 image: ""
             }
         };
+    },
+    componentDidMount: function(){
+        this.state.artistName = this.props.searchText;
     },
     handleArtistNameChange: function(e) {
         this.setState({artistName: e.target.value});

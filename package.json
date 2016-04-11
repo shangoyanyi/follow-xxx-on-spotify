@@ -15,8 +15,9 @@
     "react-dom": "^0.14.7"
   },
   "devDependencies": {
+    "babel-loader": "^6.2.3",
     "webpack": "^1.12.14",
     "webpack-dev-server": "^1.14.1",
-    "babel-loader": "^6.2.3"
+    "wurl": "^2.1.0"
   }
 }
