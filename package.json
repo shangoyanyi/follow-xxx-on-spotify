@@ -5,6 +5,9 @@
   "main": "server.js",
   "repository": "",
   "author": "Chih-Kuang,Wu <shangoyanyi@gmail.com>",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
     "babel-core": "^6.5.2",
     "babel-preset-es2015": "^6.5.0",
