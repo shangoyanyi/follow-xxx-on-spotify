@@ -2,7 +2,7 @@
   "name": "react-webpack-example",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "main.js",
   "repository": "",
   "author": "Chih-Kuang,Wu <shangoyanyi@gmail.com>",
   "scripts": {
