@@ -79,17 +79,48 @@ module.exports = React.createClass({
         });
     },
     getFollowingList: function(accessToken){
-        $.ajax({
-            url: 'https://api.spotify.com/v1/me/following?type=artist',
-            headers: {
-                'Authorization': 'Bearer ' + accessToken
-            },
-            success: function(data){
-                this.setState({
-                    followingList: data.artists.items
-                });
-            }.bind(this)
+        console.log('get followingList, accessToken: ' + accessToken);
+        
+        var _this = this;
+        
+        this.setState({
+            followingList:[]
         });
+        
+        
+        var pageNumber = 1;
+        
+        var getNextPage = function(accessToken, url){
+            console.log('get page ' + pageNumber + ' : ');
+            
+            $.ajax({
+                url: url,
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken
+                },
+                success: function(data){
+                    console.log('page ' + pageNumber + ' followingList: ' + JSON.stringify(data.artists.items));
+                    
+                    _this.setState({
+                        followingList: _this.state.followingList.concat(data.artists.items)
+                    });
+                    
+                    
+                    console.log('next:' + JSON.stringify(data.artists.next));
+                    
+                    if(data.artists.next == null){
+                        console.log('end of followingList');
+                        
+                    }else{
+                        console.log('have next page');
+                        pageNumber++;
+                        getNextPage(accessToken, data.artists.next);
+                    }
+                }.bind(_this)
+            });
+        }
+        
+        getNextPage(accessToken, 'https://api.spotify.com/v1/me/following?type=artist');
     },
     handleSearchInputChanged: function(e){
         this.setState({
@@ -110,7 +141,7 @@ module.exports = React.createClass({
                 'Authorization': 'Bearer ' + accessToken
             },
             success: function(data){
-                console.log(JSON.stringify(data));
+                console.log('search result: ' + JSON.stringify(data));
                 
                 this.setState({
                    searchResult: data.artists.items 
@@ -130,24 +161,29 @@ module.exports = React.createClass({
             success: function(){
                 console.log("artist followed");
                 
-                this.getSearchResult(this.state.accessToken, this.state.search.type, this.state.search.text); // refresh search result
+                this.getFollowingList(this.state.accessToken);
             }.bind(this)
         });
+    },
+    handleUnfollowRequest: function(e){
+        console.log('following itemId: ' + e.target.value);
         
+        $.ajax({
+            method: "DELETE",
+            url: 'https://api.spotify.com/v1/me/following?type=artist&ids=' + e.target.value,
+            headers: {
+                'Authorization': 'Bearer ' + this.state.accessToken
+            },
+            success: function(){
+                console.log("artist unfollowed");
+                
+                this.getFollowingList(this.state.accessToken);
+            }.bind(this)
+        });
     },
     componentDidMount: function(){
         // login message listener
         window.addEventListener("message", this.handleLoginRequestCallback, false);
-        
-        // initial search
-        if(this.state.user.loginStatus == true){
-            this.getSearchResult(this.state.accessToken, this.state.search.type, this.state.search.text);
-        }
-        
-        // pollRequest
-        if(this.state.user.loginStatus == true){
-             setInterval(this.getFollowingList(this.state.accessToken), 2000);
-        }
     },
     render: function() {
         if(this.state.user.loginStatus == false){
@@ -172,10 +208,10 @@ module.exports = React.createClass({
                     </div>
                     
                     <hr/>
-                    <SearchBox handleSearchInputChanged={this.handleSearchInputChanged} searchResult={this.state.searchResult} followingList={this.state.followingList} handleFollowRequest={this.handleFollowRequest} />
+                    <SearchBox handleSearchInputChanged={this.handleSearchInputChanged} searchResult={this.state.searchResult} followingList={this.state.followingList} handleFollowRequest={this.handleFollowRequest} handleUnfollowRequest={this.handleUnfollowRequest}/>
                     
                     <hr/>
-                    <FollowingList data={this.state.followingList} />
+                    <FollowingList data={this.state.followingList} handleUnfollowRequest={this.handleUnfollowRequest} />
                 </div>
             );
         }
@@ -187,6 +223,16 @@ module.exports = React.createClass({
 var SearchBox = React.createClass({
     render: function(){
         var styles = {
+            inputBox: {
+                width: '100%',
+                padding: '10px',
+                fontSize: '1.25em',
+                backgroundColor: '#e5e5e5',
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
+                borderBottom: '1px solid #aaa'
+            },
             searchResultItemContainer : {
                 width: 'auto',
                 padding: '5px',
@@ -227,6 +273,15 @@ var SearchBox = React.createClass({
                 borderRadius: '4px',
                 cursor:'pointer'
             },
+            btnUnfollow: {
+                padding: '5px',
+                margin: '10px',
+                backgroundColor : 'transparent',
+                color: '#ffffff',
+                border: '1px solid #ffffff',
+                borderRadius: '4px',
+                cursor:'pointer'
+            },
             tagFollowing: {
                 padding: '5px',
                 margin: '10px',
@@ -244,7 +299,7 @@ var SearchBox = React.createClass({
         // 接props物件 讓map可使用
         var followingList = this.props.followingList;
         var handleFollowRequest = this.props.handleFollowRequest;
-        
+        var handleUnfollowRequest = this.props.handleUnfollowRequest;
         
         var searchResultItem = this.props.searchResult.map(function(item){
             console.log(JSON.stringify(item));
@@ -272,6 +327,7 @@ var SearchBox = React.createClass({
                             <p style={styles.searchResultItemNameTitle}> 
                                 {item.name}
                                 <span style={styles.tagFollowing}>following</span>
+                                <button onClick={handleUnfollowRequest} value={item.id} style={styles.btnUnfollow}>unfollow</button>
                             </p>
                             <p>
                                 <a href={item.external_urls.spotify} target='_blank' style={styles.searchResultItemNameHref}><img src='http://pennstateliveshere.psu.edu/images/play-btn.png'/></a>
@@ -304,7 +360,7 @@ var SearchBox = React.createClass({
         return (
             <div>
                 <h3>Search Now!</h3>
-                <div><input type='text' placeholder='please enter search text' onChange={this.props.handleSearchInputChanged}/></div>
+                <div><input type='text' placeholder='please enter search text' onChange={this.props.handleSearchInputChanged} style={styles.inputBox}/></div>
                 <h4>Search Result</h4>
                 {searchResultItem}
             </div>
@@ -349,11 +405,22 @@ var FollowingList = React.createClass({
                 color: '#ffffff',
                 padding: '5px',
             },
+            btnUnfollow: {
+                padding: '5px',
+                margin: '10px',
+                backgroundColor : 'transparent',
+                color: '#ffffff',
+                border: '1px solid #ffffff',
+                borderRadius: '4px',
+                cursor:'pointer'
+            },
             clearfix: {
                 clear: 'both'
             }
         };
         
+        
+        var handleUnfollowRequest = this.props.handleUnfollowRequest;
 
         var listItem  = this.props.data.map(function(item){
             // console.log(JSON.stringify(item));
@@ -369,7 +436,10 @@ var FollowingList = React.createClass({
                 <div key={item.id} className='followingItemContainer' style={styles.followingItemContainer} >
                     <div className='followingItemPhoto' style={styles.followingItemPhoto} ><img src={imageUrl} alt={item.name} style={styles.followingItemPhotoImage} /></div>
                     <div className='followingItemName' style={styles.followingItemName} > 
-                        <p style={styles.followingItemNameTitle}> {item.name} </p>
+                        <p style={styles.followingItemNameTitle}> 
+                            {item.name} 
+                            <button onClick={handleUnfollowRequest} value={item.id} style={styles.btnUnfollow}>unfollow</button>
+                        </p>
                         <p><a href={item.external_urls.spotify} target='_blank' style={styles.followingItemNameHref}><img src='http://pennstateliveshere.psu.edu/images/play-btn.png'/></a></p>
                     </div>
                     <div style={styles.clearfix}></div>
@@ -379,7 +449,7 @@ var FollowingList = React.createClass({
         
         return (
             <div>
-                <h3>Now Following</h3>
+                <h3>Now Following ({this.props.data.length}) </h3>
                 {listItem}
             </div>
         );
