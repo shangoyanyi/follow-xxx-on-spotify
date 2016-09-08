@@ -111,6 +111,7 @@ module.exports = React.createClass({
                     if(data.artists.next == null){
                         console.log('end of followingList');
                         
+                        
                     }else{
                         console.log('have next page');
                         pageNumber++;
@@ -186,6 +187,18 @@ module.exports = React.createClass({
         window.addEventListener("message", this.handleLoginRequestCallback, false);
     },
     render: function() {
+        var styles = {
+          loginButton:{
+              border: 'none',
+              backgroundColor: '#2EBD59',
+              fontSize: '1.25em',
+              padding: '10px',
+              borderRadius: '10px',
+              color: '#ffffff',
+              cursor: 'pointer'
+          }  
+        };
+        
         if(this.state.user.loginStatus == false){
             return (
                 <div className="SpotifyBox">
@@ -193,7 +206,7 @@ module.exports = React.createClass({
                     
                     <div>
                         <p>Please login your Spotify Accounts</p>
-                        <p><button onClick={this.handleLoginRequest}> Login </button></p>
+                        <p><button onClick={this.handleLoginRequest} style={styles.loginButton}> Login </button></p>
                     </div>
                 </div>
             );
